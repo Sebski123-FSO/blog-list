@@ -14,81 +14,131 @@ beforeEach(async () => {
   await Promise.all(promiseArray);
 });
 
-test("blogs are returned as json", async () => {
-  await api
-    .get("/api/blogs")
-    .expect(200)
-    .expect("Content-Type", /application\/json/);
+describe("reading blogs", () => {
+  test("blogs are returned as json", async () => {
+    await api
+      .get("/api/blogs")
+      .expect(200)
+      .expect("Content-Type", /application\/json/);
+  });
+
+  test("all blogs are returned", async () => {
+    const blogs = await helper.blogsInDb();
+
+    expect(blogs.length).toBe(helper.initialBlogs.length);
+  });
+
+  test("a specific blog is within the returned notes", async () => {
+    const blogs = await helper.blogsInDb();
+    const content = blogs.map((blog) => blog.title);
+
+    expect(content).toContain(helper.initialBlogs[0].title);
+  });
+
+  test("returned blog has 'id' property", async () => {
+    const notes = await helper.blogsInDb();
+    const note = notes[0];
+
+    expect(note.id).toBeDefined();
+  });
 });
 
-test("all blogs are returned", async () => {
-  const blogs = await helper.blogsInDb();
+describe("posting blogs", () => {
+  test("a valid blog can be added", async () => {
+    const newBlog = {
+      title: "test blog 4",
+      author: "yoo",
+      url: "example.com/4",
+      likes: 5318008,
+    };
 
-  expect(blogs.length).toBe(helper.initialBlogs.length);
+    await api
+      .post("/api/blogs")
+      .send(newBlog)
+      .expect(201)
+      .expect("Content-Type", /application\/json/);
+
+    const blogs = await helper.blogsInDb();
+    const content = blogs.map((blog) => blog.title);
+
+    expect(blogs.length).toBe(helper.initialBlogs.length + 1);
+    expect(content).toContain(newBlog.title);
+  });
+
+  test("blog without content is not added", async () => {
+    const newBlog = {
+      likes: 4,
+    };
+
+    await api.post("/api/blogs").send(newBlog).expect(400);
+
+    const blogs = await helper.blogsInDb();
+    const content = blogs.map((blog) => blog.title);
+
+    expect(blogs.length).toBe(helper.initialBlogs.length);
+    expect(content).not.toContain(newBlog.title);
+  });
+
+  test("entry with no like count will default to zero", async () => {
+    const newBlog = {
+      title: "test blog 4",
+      author: "yoo",
+      url: "example.com/4",
+    };
+
+    await api.post("/api/blogs").send(newBlog);
+
+    const blogs = await helper.blogsInDb();
+    const newlyAddedBlog = blogs[blogs.length - 1];
+
+    expect(newlyAddedBlog.likes).toBe(0);
+  });
 });
 
-test("a specific blog is within the returned notes", async () => {
-  const blogs = await helper.blogsInDb();
-  const content = blogs.map((blog) => blog.title);
+describe("updating blogs", () => {
+  test("updating like count on a blog works", async () => {
+    const blogsBeforeUpdate = await helper.blogsInDb();
 
-  expect(content).toContain(helper.initialBlogs[0].title);
+    const updatedBlog = {
+      likes: 6969,
+    };
+
+    await api
+      .put(`/api/blogs/${blogsBeforeUpdate[0].id}`)
+      .send(updatedBlog)
+      .expect(200)
+      .expect("Content-Type", /application\/json/);
+
+    const blogAfterUpdate = await Blog.findById(blogsBeforeUpdate[0].id);
+
+    expect(blogAfterUpdate.likes).toBe(6969);
+  });
 });
 
-test("a valid blog can be added", async () => {
-  const newBlog = {
-    title: "test blog 4",
-    author: "yoo",
-    url: "example.com/4",
-    likes: 5318008,
-  };
+describe("deleting blogs", () => {
+  test("blog can be deleted and returns correct status code", async () => {
+    const blogsBeforeDeletion = await helper.blogsInDb();
+    const blogToDelete = blogsBeforeDeletion[0];
+    const blogToKeep = blogsBeforeDeletion[1];
 
-  await api
-    .post("/api/blogs")
-    .send(newBlog)
-    .expect(201)
-    .expect("Content-Type", /application\/json/);
+    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
 
-  const blogs = await helper.blogsInDb();
-  const content = blogs.map((blog) => blog.title);
+    const blogsAfterDeletion = await helper.blogsInDb();
 
-  expect(blogs.length).toBe(helper.initialBlogs.length + 1);
-  expect(content).toContain(newBlog.title);
-});
+    expect(blogsAfterDeletion.length).toBe(blogsBeforeDeletion.length - 1);
+    expect(blogsAfterDeletion).toContainEqual(blogToKeep);
+    expect(blogsAfterDeletion).not.toContainEqual(blogToDelete);
+  });
 
-test("blog without content is not added", async () => {
-  const newBlog = {
-    likes: 4,
-  };
+  test("trying to delete non-existing blog returns correct status code", async () => {
+    const nonExsistingId = "620ae5aad8de2296f70b634b";
 
-  await api.post("/api/blogs").send(newBlog).expect(400);
+    await api.delete(`/api/blogs/${nonExsistingId}`).expect(204);
 
-  const blogs = await helper.blogsInDb();
-  const content = blogs.map((blog) => blog.title);
+    const blogsAfterDeletion = await helper.blogsInDb();
 
-  expect(blogs.length).toBe(helper.initialBlogs.length);
-  expect(content).not.toContain(newBlog.title);
-});
-
-test("returned blog has 'id' property", async () => {
-  const notes = await helper.blogsInDb();
-  const note = notes[0];
-
-  expect(note.id).toBeDefined();
-});
-
-test("entry with no like count will default to zero", async () => {
-  const newBlog = {
-    title: "test blog 4",
-    author: "yoo",
-    url: "example.com/4",
-  };
-
-  await api.post("/api/blogs").send(newBlog);
-
-  const blogs = await helper.blogsInDb();
-  const newlyAddedBlog = blogs[blogs.length - 1];
-
-  expect(newlyAddedBlog.likes).toBe(0);
+    expect(blogsAfterDeletion.length).toBe(helper.initialBlogs.length);
+  });
 });
 
 // test.only("a specific blog can be viewed", async () => {
