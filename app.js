@@ -5,6 +5,7 @@ const config = require("./utils/config");
 const cors = require("cors");
 const { errorLogger } = require("./utils/middleware");
 const express = require("express");
+const loginRouter = require("./controllers/login");
 const mongoose = require("mongoose");
 const usersRouter = require("./controllers/users");
 
@@ -17,6 +18,7 @@ app.use(express.json());
 
 app.use("/api/blogs", blogsRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/login", loginRouter);
 
 app.use(errorLogger);
 
