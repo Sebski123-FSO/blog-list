@@ -12,17 +12,11 @@ blogsRouter.post("/", async (request, response) => {
   const authToken = request.token;
 
   if (!authToken) {
-    return response.status(400).json({
+    return response.status(401).json({
       error: "missing auth token",
     });
   }
-
   const decodedToken = jwt.verify(authToken, process.env.SECRET);
-  if (!decodedToken) {
-    return response.status(400).json({
-      error: "invalid auth token",
-    });
-  }
 
   const user = await User.findById(decodedToken.id);
   const blog = new Blog({ ...request.body, user: user.id });
@@ -44,6 +38,22 @@ blogsRouter.put("/:id", async (request, response) => {
 
 blogsRouter.delete("/:id", async (request, response) => {
   const id = request.params.id;
+  const authToken = request.token;
+
+  if (!authToken) {
+    return response.status(401).json({
+      error: "missing auth token",
+    });
+  }
+  const decodedToken = jwt.verify(authToken, process.env.SECRET);
+
+  const user = await User.findById(decodedToken.id);
+
+  if (!user.blogs.includes(id)) {
+    return response.status(401).json({
+      error: "Unauthorized",
+    });
+  }
 
   await Blog.findByIdAndDelete(id);
 
