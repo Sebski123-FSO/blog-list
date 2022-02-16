@@ -1,9 +1,9 @@
 require("dotenv").config();
 require("express-async-errors");
+const { errorLogger, tokenExtractor } = require("./utils/middleware");
 const blogsRouter = require("./controllers/blogs");
 const config = require("./utils/config");
 const cors = require("cors");
-const { errorLogger } = require("./utils/middleware");
 const express = require("express");
 const loginRouter = require("./controllers/login");
 const mongoose = require("mongoose");
@@ -15,6 +15,7 @@ mongoose.connect(config.MONGODB_URI);
 
 app.use(cors());
 app.use(express.json());
+app.use(tokenExtractor);
 
 app.use("/api/blogs", blogsRouter);
 app.use("/api/users", usersRouter);

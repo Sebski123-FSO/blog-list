@@ -9,15 +9,14 @@ blogsRouter.get("/", async (request, response) => {
 });
 
 blogsRouter.post("/", async (request, response) => {
-  const auth = request.get("Authorization");
+  const authToken = request.token;
 
-  if (!auth || !auth.startsWith("bearer ")) {
+  if (!authToken) {
     return response.status(400).json({
       error: "missing auth token",
     });
   }
 
-  const authToken = auth.substring(7);
   const decodedToken = jwt.verify(authToken, process.env.SECRET);
   if (!decodedToken) {
     return response.status(400).json({

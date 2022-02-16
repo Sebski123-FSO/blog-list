@@ -1,4 +1,17 @@
+const Blog = require("../models/blog");
+const jwt = require("jsonwebtoken");
 const logger = require("./logger");
+
+const tokenExtractor = (req, res, next) => {
+  const auth = req.get("Authorization");
+
+  if (auth.startsWith("bearer ")) {
+    const authToken = auth.substring(7);
+    req.token = authToken;
+  }
+
+  next();
+};
 
 const errorLogger = (error, req, res, next) => {
   logger.error(error.message);
@@ -11,4 +24,4 @@ const errorLogger = (error, req, res, next) => {
   next(error);
 };
 
-module.exports = { errorLogger };
+module.exports = { errorLogger, tokenExtractor };
