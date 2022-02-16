@@ -42,9 +42,14 @@ blogsRouter.delete("/:id", async (request, response) => {
   }
 
   if (!user.blogs.includes(id)) {
-    return response.status(401).json({
-      error: "Unauthorized",
-    });
+    const blog = await Blog.findById(id);
+    if (blog) {
+      return response.status(401).json({
+        error: "Unauthorized",
+      });
+    } else {
+      return response.status(204).end();
+    }
   }
 
   await Blog.findByIdAndDelete(id);

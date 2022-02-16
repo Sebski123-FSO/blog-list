@@ -1,16 +1,23 @@
 const Blog = require("../models/blog");
+const User = require("../models/user");
 const app = require("../app");
 const helper = require("./test_helper");
 const mongoose = require("mongoose");
 const supertest = require("supertest");
 
 const api = supertest(app);
+let loggedInToken;
 
 beforeEach(async () => {
   await Blog.deleteMany({});
+  await User.deleteMany({});
 
-  const noteObjects = helper.initialBlogs.map((note) => new Blog(note));
-  const promiseArray = noteObjects.map((note) => note.save());
+  const testUser = { userName: "test", name: "test", password: "1234" };
+  await api.post("/api/users").send(testUser);
+  const response = await api.post("/api/login").send({ userName: testUser.userName, password: testUser.password });
+  loggedInToken = `bearer ${response.body.token}`;
+
+  const promiseArray = helper.initialBlogs.map(async (note) => await api.post("/api/blogs").set("Authorization", loggedInToken).send(note));
   await Promise.all(promiseArray);
 });
 
@@ -54,6 +61,7 @@ describe("posting blogs", () => {
 
     await api
       .post("/api/blogs")
+      .set("Authorization", loggedInToken)
       .send(newBlog)
       .expect(201)
       .expect("Content-Type", /application\/json/);
@@ -70,7 +78,7 @@ describe("posting blogs", () => {
       likes: 4,
     };
 
-    await api.post("/api/blogs").send(newBlog).expect(400);
+    await api.post("/api/blogs").set("Authorization", loggedInToken).send(newBlog).expect(400);
 
     const blogs = await helper.blogsInDb();
     const content = blogs.map((blog) => blog.title);
@@ -86,7 +94,7 @@ describe("posting blogs", () => {
       url: "example.com/4",
     };
 
-    await api.post("/api/blogs").send(newBlog);
+    await api.post("/api/blogs").set("Authorization", loggedInToken).send(newBlog);
 
     const blogs = await helper.blogsInDb();
     const newlyAddedBlog = blogs[blogs.length - 1];
@@ -121,7 +129,7 @@ describe("deleting blogs", () => {
     const blogToDelete = blogsBeforeDeletion[0];
     const blogToKeep = blogsBeforeDeletion[1];
 
-    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(204);
+    await api.delete(`/api/blogs/${blogToDelete.id}`).set("Authorization", loggedInToken).expect(204);
 
     const blogsAfterDeletion = await helper.blogsInDb();
 
@@ -133,31 +141,25 @@ describe("deleting blogs", () => {
   test("trying to delete non-existing blog returns correct status code", async () => {
     const nonExsistingId = "620ae5aad8de2296f70b634b";
 
-    await api.delete(`/api/blogs/${nonExsistingId}`).expect(204);
+    await api.delete(`/api/blogs/${nonExsistingId}`).set("Authorization", loggedInToken).expect(204);
 
     const blogsAfterDeletion = await helper.blogsInDb();
 
     expect(blogsAfterDeletion.length).toBe(helper.initialBlogs.length);
   });
+
+  test("trying to delete blog with no authentication returns correct status code", async () => {
+    const blogsBeforeDeletion = await helper.blogsInDb();
+    const blogToDelete = blogsBeforeDeletion[0];
+
+    await api.delete(`/api/blogs/${blogToDelete.id}`).expect(401);
+
+    const blogsAfterDeletion = await helper.blogsInDb();
+
+    expect(blogsAfterDeletion.length).toBe(blogsBeforeDeletion.length);
+    expect(blogsAfterDeletion).toContainEqual(blogToDelete);
+  });
 });
-
-// test.only("a specific blog can be viewed", async () => {
-//   const blogsAtStart = await helper.blogsInDb();
-
-//   const blogToView = blogsAtStart[0];
-//   console.log(blogToView);
-
-//   const resultBlog = await api
-//     .get(`/api/notes/${blogToView.id}`)
-//     .expect(200)
-//     .expect("Content-Type", /application\/json/);
-
-//   const processedBlogToView = JSON.parse(JSON.stringify(blogToView));
-
-//   expect(resultBlog.body).toEqual(processedBlogToView);
-// });
-
-// test("a blog can be deleted", async () => {});
 
 afterAll(() => {
   mongoose.connection.close();
