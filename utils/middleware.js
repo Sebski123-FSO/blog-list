@@ -1,3 +1,5 @@
+const User = require("../models/user");
+const jwt = require("jsonwebtoken");
 const logger = require("./logger");
 
 const tokenExtractor = (req, res, next) => {
@@ -8,6 +10,17 @@ const tokenExtractor = (req, res, next) => {
     req.token = authToken;
   }
 
+  next();
+};
+
+const userExtractor = async (req, res, next) => {
+  const token = req.token;
+
+  if (token) {
+    const decodedToken = jwt.verify(token, process.env.SECRET);
+    const user = await User.findById(decodedToken.id);
+    req.user = user;
+  }
   next();
 };
 
@@ -22,4 +35,4 @@ const errorLogger = (error, req, res, next) => {
   next(error);
 };
 
-module.exports = { errorLogger, tokenExtractor };
+module.exports = { errorLogger, tokenExtractor, userExtractor };
