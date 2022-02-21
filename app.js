@@ -1,6 +1,10 @@
 require("dotenv").config();
 require("express-async-errors");
-const { errorLogger, tokenExtractor, userExtractor } = require("./utils/middleware");
+const {
+  errorLogger,
+  tokenExtractor,
+  userExtractor,
+} = require("./utils/middleware");
 const blogsRouter = require("./controllers/blogs");
 const config = require("./utils/config");
 const cors = require("cors");
@@ -21,6 +25,10 @@ app.use("/api/blogs", userExtractor, blogsRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/login", loginRouter);
 
+if (process.env.NODE_ENV === "test") {
+  const testingRouter = require("./controllers/testing");
+  app.use("/api/testing", testingRouter);
+}
 app.use(errorLogger);
 
 module.exports = app;
