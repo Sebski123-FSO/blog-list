@@ -7,7 +7,7 @@ const tokenExtractor = (req, res, next) => {
   if (!auth) {
     auth = req.get("authorization");
   }
-  auth = "";
+  // auth = "";
 
   if (auth && auth.toLowerCase().startsWith("bearer ")) {
     const authToken = auth.substring(7);
